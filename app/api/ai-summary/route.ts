@@ -4,32 +4,64 @@ export async function POST(req: Request) {
   try {
     const { feedbacks } = await req.json();
 
-    console.log("Received feedbacks:", feedbacks);
-
     const text = feedbacks
       .map((f: any) => f.content)
       .join("\n");
 
-    console.log("Generated text:", text);
-
-    // ...
+    if (!text.trim()) {
+      return NextResponse.json({
+        summary: "No feedback available for analysis.",
+      });
+    }
 
     const prompt = `
-You are an AI analyst.
+You are a Senior Customer Experience Analyst.
 
-Analyze:
-1. Overall sentiment
-2. Key themes
-3. Major issues
-4. Recommendations
-5. Executive summary
+Analyze the customer feedback provided below and generate a professional business report.
 
-Feedback:
+Feedback Data:
 ${text}
+
+Return the response using EXACTLY this format:
+
+# Executive Summary
+(2-3 concise paragraphs summarizing overall customer perception.)
+
+# Overall Sentiment
+- Positive: X%
+- Negative: X%
+- Neutral: X%
+- Final Assessment: (One sentence)
+
+# Key Themes
+- Theme 1: Description
+- Theme 2: Description
+- Theme 3: Description
+
+# Critical Issues
+- Issue 1
+- Issue 2
+- Issue 3
+
+# Recommendations
+- Recommendation 1
+- Recommendation 2
+- Recommendation 3
+
+# Business Impact
+(Explain how these findings could affect customer satisfaction, retention, or growth.)
+
+IMPORTANT RULES:
+- Never ask for additional information.
+- Never say "I need more context."
+- Never explain how you would perform the analysis.
+- Treat the provided feedback as the complete dataset.
+- Write in a professional executive-report style.
+- Keep the response concise, clear, and actionable.
 `;
 
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -45,42 +77,21 @@ ${text}
       }
     );
 
-    console.log("Gemini status:", res.status);
+    const data = await response.json();
 
-    const data = await res.json();
-
-    console.log(
-      JSON.stringify(data, null, 2)
-    );
-
-    if (!res.ok) {
-      return NextResponse.json(
-        {
-          error:
-            data.error?.message ||
-            "Gemini request failed",
-        },
-        {
-          status: res.status,
-        }
-      );
-    }
+    const summary =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     return NextResponse.json({
-      summary:
-        data?.candidates?.[0]?.content?.parts?.[0]?.text ??
-        "No AI response generated",
+      summary: summary || "No AI response generated.",
     });
-  } catch (err) {
-    console.error(err);
+
+  } catch (error) {
+    console.error(error);
 
     return NextResponse.json(
-      {
-        error: "AI summary failed",
-      },
-      {
-        status: 500,
-      }
+      { error: "AI summary failed" },
+      { status: 500 }
     );
   }
 }
