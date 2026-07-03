@@ -5,20 +5,13 @@ export async function POST(req: Request) {
     const { feedbacks } = await req.json();
 
     const text = feedbacks
-      .map((f: { content: string }) => f.content)
+      .map((f: any) => f.content)
       .join("\n");
 
-    if (!text.trim()) {
-      return NextResponse.json({
-        summary: "No feedback available.",
-      });
-    }
-
     const prompt = `
-You are an AI analyst for a customer feedback platform.
+You are an AI analyst.
 
-Analyze the following feedback and provide:
-
+Analyze:
 1. Overall sentiment
 2. Key themes
 3. Major issues
@@ -29,8 +22,8 @@ Feedback:
 ${text}
 `;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
@@ -39,47 +32,41 @@ ${text}
         body: JSON.stringify({
           contents: [
             {
-              role: "user",
-              parts: [
-                {
-                  text: prompt,
-                },
-              ],
+              parts: [{ text: prompt }],
             },
           ],
         }),
       }
     );
 
-    const result = await response.json();
+    console.log("Gemini status:", res.status);
 
-    console.log("Gemini status:", response.status);
+    const data = await res.json();
+
     console.log(
-      "Gemini result:",
-      JSON.stringify(result, null, 2)
+      JSON.stringify(data, null, 2)
     );
 
-    if (!response.ok) {
+    if (!res.ok) {
       return NextResponse.json(
         {
           error:
-            result.error?.message ||
-            "Gemini API request failed",
+            data.error?.message ||
+            "Gemini request failed",
         },
         {
-          status: 500,
+          status: res.status,
         }
       );
     }
 
-    const summary =
-      result?.candidates?.[0]?.content?.parts?.[0]?.text;
-
     return NextResponse.json({
-      summary: summary || "No AI response generated",
+      summary:
+        data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+        "No AI response generated",
     });
-  } catch (error) {
-    console.error("AI ERROR:", error);
+  } catch (err) {
+    console.error(err);
 
     return NextResponse.json(
       {
