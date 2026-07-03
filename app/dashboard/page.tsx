@@ -214,7 +214,7 @@ async function generateAISummary() {
 
     const json = await res.json();
 
-    setAiSummary(json.summary);
+    setAiSummary(json.summary ?? "No response generated");
   } catch (error) {
     console.error(error);
   } finally {

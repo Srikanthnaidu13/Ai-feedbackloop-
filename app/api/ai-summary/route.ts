@@ -1,54 +1,85 @@
 import { NextResponse } from "next/server";
 
-type Feedback = {
-  content: string;
-};
-
 export async function POST(req: Request) {
   try {
-    const { feedbacks }: { feedbacks: Feedback[] } =
-      await req.json();
+    console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
+
+    const { feedbacks } = await req.json();
 
     const text = feedbacks
-      .map((f) => f.content)
+      .map((f: any) => f.content)
       .join("\n");
 
+    console.log("Feedback text:", text);
+
     const prompt = `
-You are an AI analyst for a customer feedback system.
+You are an AI analyst.
 
-Analyze the following feedback and provide:
-
-1. Overall sentiment
-2. Key themes
-3. Major issues
-4. Actionable recommendations
-5. A short executive summary
+Analyze:
+- Overall sentiment
+- Key themes
+- Major issues
+- Recommendations
+- Executive summary
 
 Feedback:
 ${text}
 `;
 
-    const res = await fetch(
-      "http://localhost:11434/api/generate",
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gemma3:4b",
-          prompt,
-          stream: false,
+          contents: [
+            {
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
+            },
+          ],
         }),
       }
     );
 
-    const data = await res.json();
+    const data = await response.json();
+
+    console.log(
+      "Gemini status:",
+      response.status
+    );
+
+    console.log(
+      "Gemini response:",
+      JSON.stringify(data, null, 2)
+    );
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          error: data.error?.message || "Gemini API failed",
+        },
+        {
+          status: 500,
+        }
+      );
+    }
+
+    const summary =
+      data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     return NextResponse.json({
-      summary: data.response,
+      summary:
+        summary || "No AI response generated",
     });
-  } catch {
+  } catch (error) {
+    console.error("AI ERROR:", error);
+
     return NextResponse.json(
       {
         error: "AI summary failed",
