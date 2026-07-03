@@ -16,6 +16,7 @@ model User {
 
   feedbacks Feedback[]
 }
+
 model Feedback {
   id        String   @id @default(cuid())
   content   String

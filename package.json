@@ -2,12 +2,15 @@
   "name": "loop",
   "version": "0.1.0",
   "private": true,
+
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "postinstall": "prisma generate"
   },
+
   "dependencies": {
     "@google/genai": "^2.10.0",
     "@prisma/client": "^6.19.3",
@@ -21,6 +24,7 @@
     "react-chartjs-2": "^5.3.1",
     "react-dom": "19.2.4"
   },
+
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
