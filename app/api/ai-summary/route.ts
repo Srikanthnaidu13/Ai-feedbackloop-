@@ -2,25 +2,33 @@ import { NextResponse } from "next/server";
 
 export async function POST(req: Request) {
   try {
-    console.log("API KEY EXISTS:", !!process.env.GEMINI_API_KEY);
+    console.log(
+      "API KEY EXISTS:",
+      !!process.env.GEMINI_API_KEY
+    );
 
     const { feedbacks } = await req.json();
 
     const text = feedbacks
-      .map((f: any) => f.content)
+      .map((f: { content: string }) => f.content)
       .join("\n");
 
-    console.log("Feedback text:", text);
+    if (!text) {
+      return NextResponse.json({
+        summary: "No feedback available.",
+      });
+    }
 
     const prompt = `
 You are an AI analyst.
 
-Analyze:
-- Overall sentiment
-- Key themes
-- Major issues
-- Recommendations
-- Executive summary
+Analyze the customer feedback and provide:
+
+1. Overall sentiment
+2. Key themes
+3. Main issues
+4. Recommendations
+5. Executive summary
 
 Feedback:
 ${text}
@@ -49,6 +57,7 @@ ${text}
 
     const data = await response.json();
 
+    // IMPORTANT: print the full response
     console.log(
       "Gemini status:",
       response.status
@@ -74,8 +83,7 @@ ${text}
       data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     return NextResponse.json({
-      summary:
-        summary || "No AI response generated",
+      summary: summary || "No AI response generated",
     });
   } catch (error) {
     console.error("AI ERROR:", error);
