@@ -4,9 +4,15 @@ export async function POST(req: Request) {
   try {
     const { feedbacks } = await req.json();
 
+    console.log("Received feedbacks:", feedbacks);
+
     const text = feedbacks
       .map((f: any) => f.content)
       .join("\n");
+
+    console.log("Generated text:", text);
+
+    // ...
 
     const prompt = `
 You are an AI analyst.
