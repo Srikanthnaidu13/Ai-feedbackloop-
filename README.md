@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Project LOOP
 
-## Getting Started
+Project LOOP is an AI-powered Customer Feedback Intelligence Platform that helps organizations collect, analyze, and visualize customer feedback in real time. The platform uses AI to classify sentiment, identify business themes, generate insights, and support data-driven decision-making.
 
-First, run the development server:
+## Features
+
+- AI-powered sentiment analysis
+- Theme classification
+- Real-time analytics dashboard
+- Theme trend analysis
+- Spike detection
+- AI Summary generation
+- Ask LOOP AI Assistant
+- Voice of Customer (VoC) Report
+- PDF report generation
+- CSV data export
+- Feedback filtering and pagination
+- Secure authentication
+
+## Technology Stack
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Prisma ORM
+- PostgreSQL
+- AI API Integration
+- Vercel
+
+## Installation
 
 ```bash
+git clone https://github.com/Srikanthnaidu13/Ai-feedbackloop-.git
+cd Ai-feedbackloop-
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Create a `.env` file with the required environment variables before running the project.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Live Demo
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Vercel Deployment: *(Add your Vercel URL here)*
 
-## Learn More
+## Author
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+**Srikanth S**
