@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 
 import SentimentChart from "@/components/dashboard/SentimentChart";
 import ThemeChart from "@/components/dashboard/ThemeChart";
 import LogoutButton from "@/components/LogoutButton";
+import ThemeTrendChart from "@/components/dashboard/ThemeTrendChart";
+import SpikeDetection from "@/components/dashboard/SpikeDetection";
 
 type DashboardData = {
   totalFeedback: number;
   pendingCount: number;
   activeThemes: number;
+
+  page: number;
+  limit: number;
+  totalPages: number;
 
   sentimentCounts: {
     positive: number;
@@ -36,9 +44,32 @@ export default function DashboardPage() {
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-
+  const [page, setPage] = useState(1);
+const limit = 5; 
+const [trendData, setTrendData] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [spikes, setSpikes] = useState([]);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [question, setQuestion] = useState("");
 
+const [asking, setAsking] = useState(false);
+const [messages, setMessages] = useState<
+  {
+    type: "question" | "answer";
+    text: string;
+  }[]
+>([]);
+
+const suggestedQuestions = [
+  "Summarize today's customer feedback",
+  "What are the top customer complaints?",
+  "Which sentiment is most common?",
+  "Which theme is growing the fastest?",
+  "Give an executive summary",
+  "What should management prioritize?",
+  "Which channel receives the most complaints?",
+  "Recommend product improvements",
+];
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     message: string;
@@ -50,8 +81,9 @@ export default function DashboardPage() {
 
   // ✅ FIXED: AI hooks INSIDE component
   const [aiSummary, setAiSummary] = useState("");
-  const [loadingAI, setLoadingAI] = useState(false);
   const [showAISummary, setShowAISummary] = useState(true);
+  const [vocReport, setVocReport] = useState("");
+const [loadingReport, setLoadingReport] = useState(false);
 
   const filteredFeedback = data?.recentFeedback.filter((item) => {
     const sentimentMatch =
@@ -78,57 +110,80 @@ export default function DashboardPage() {
   }, [router]);
 
   // Dashboard data + real-time updates
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch("/api/dashboard");
+ useEffect(() => {
+  async function fetchData() {
+    try {
+      // Dashboard Data
+      const res = await fetch(
+        `/api/dashboard?page=${page}&limit=${limit}`
+      );
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch dashboard data");
-        }
-
-        const json = await res.json();
-
-        setData({
-          totalFeedback: json.totalFeedback ?? 0,
-          pendingCount: json.pendingCount ?? 0,
-          activeThemes: json.activeThemes ?? 0,
-
-          sentimentCounts:
-            json.sentimentCounts ?? {
-              positive: 0,
-              negative: 0,
-              neutral: 0,
-              pending: 0,
-            },
-
-          themeCounts: json.themeCounts ?? {},
-
-          recentFeedback: json.recentFeedback ?? [],
-        });
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
+      if (!res.ok) {
+        throw new Error("Failed to fetch dashboard data");
       }
+
+      const json = await res.json();
+
+      setData({
+        totalFeedback: json.totalFeedback ?? 0,
+        pendingCount: json.pendingCount ?? 0,
+        activeThemes: json.activeThemes ?? 0,
+
+        page: json.page ?? 1,
+        limit: json.limit ?? 5,
+        totalPages: json.totalPages ?? 1,
+
+        sentimentCounts:
+          json.sentimentCounts ?? {
+            positive: 0,
+            negative: 0,
+            neutral: 0,
+            pending: 0,
+          },
+
+        themeCounts: json.themeCounts ?? {},
+
+        recentFeedback: json.recentFeedback ?? [],
+      });
+
+      // Theme Trends Data
+      const trendRes = await fetch("/api/theme-trends");
+
+      if (trendRes.ok) {
+        const trends = await trendRes.json();
+        setTrendData(trends);
+      }
+      const spikeRes = await fetch("/api/spikes");
+
+    if (spikeRes.ok) {
+      const spikeJson = await spikeRes.json();
+      setSpikes(spikeJson);
     }
 
+
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  fetchData();
+
+  const eventSource = new EventSource("/api/live");
+
+  eventSource.onmessage = () => {
     fetchData();
+  };
 
-    const eventSource = new EventSource("/api/live");
+  eventSource.onerror = () => {
+    console.error("SSE connection lost");
+  };
 
-    eventSource.onmessage = () => {
-      fetchData();
-    };
-
-    eventSource.onerror = () => {
-      console.error("SSE connection lost");
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, []);
+  return () => {
+    eventSource.close();
+  };
+}, [page]);
 
   if (loading) {
     return (
@@ -221,6 +276,123 @@ async function generateAISummary() {
     setLoadingAI(false);
   }
 }
+
+async function generateVOCReport() {
+  try {
+    setLoadingReport(true);
+
+    const res = await fetch("/api/voc-report", {
+      method: "POST",
+    });
+
+    const json = await res.json();
+
+    console.log(json); // Should contain { report: "..." }
+
+    setVocReport(json.report);
+
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setLoadingReport(false);
+  }
+}
+
+async function askLoop() {
+  if (!question.trim()) return;
+
+  try {
+    setAsking(true);
+
+    const res = await fetch("/api/ask-loop", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        question,
+      }),
+    });
+
+    const json = await res.json();
+
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "question",
+        text: question,
+      },
+      {
+        type: "answer",
+        text: json.answer,
+      },
+    ]);
+
+    setQuestion("");
+  } catch (error) {
+    console.error(error);
+  } finally {
+    setAsking(false);
+  }
+}
+
+function downloadVOCReport() {
+  if (!vocReport) return;
+
+  const doc = new jsPDF();
+
+  // Title
+  doc.setFontSize(20);
+  doc.text("Project LOOP", 14, 20);
+
+  doc.setFontSize(16);
+  doc.text("Voice of Customer Report", 14, 30);
+
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+
+  doc.text(
+    `Generated: ${new Date().toLocaleString()}`,
+    14,
+    38
+  );
+
+  // Divider
+  doc.setDrawColor(180);
+  doc.line(14, 42, 195, 42);
+
+  // Report Body
+  doc.setFontSize(11);
+  doc.setTextColor(30);
+
+  const lines = doc.splitTextToSize(vocReport, 180);
+
+  doc.text(lines, 14, 50);
+
+  doc.save("Voice_of_Customer_Report.pdf");
+}
+
+async function reclassify(id: string) {
+  try {
+    const res = await fetch("/api/reclassify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ id }),
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed");
+    }
+
+    // Refresh dashboard
+    window.location.reload();
+  } catch (error) {
+    console.error(error);
+  }
+}
+console.log(vocReport);
   return (
     <div className="space-y-10">
 {notification && (
@@ -265,11 +437,19 @@ async function generateAISummary() {
 >
   {loadingAI ? "Generating..." : "Generate AI Summary"}
 </button>
+
+<button
+  onClick={generateVOCReport}
+  className="ml-4 rounded-2xl bg-slate-700 px-5 py-3 text-sm font-medium transition hover:bg-slate-600"
+>
+  {loadingReport ? "Generating Report..." : "Generate VoC Report"}
+</button>
+
+{/* AI Insights */}
 {aiSummary && showAISummary && (
   <section className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
-    
+
     <div className="mb-4 flex items-center justify-between">
-      
       <h2 className="text-xl font-semibold">
         AI Insights
       </h2>
@@ -280,14 +460,18 @@ async function generateAISummary() {
       >
         Close
       </button>
-
     </div>
 
-    <div className="space-y-4 text-gray-300 leading-7">
+    <div className="space-y-4 leading-7 text-gray-300">
       {aiSummary.split("\n").map((line, i) => (
         <p key={i}>{line}</p>
       ))}
     </div>
+
+  </section>
+)}
+
+{/* Show AI Insights button */}
 {aiSummary && !showAISummary && (
   <button
     onClick={() => setShowAISummary(true)}
@@ -296,11 +480,104 @@ async function generateAISummary() {
     Show AI Insights
   </button>
 )}
+
+{/* Empty AI state */}
 {!aiSummary && !loadingAI && (
   <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-gray-400">
-    No AI insights generated yet. Click &quot;Generate AI Summary&quot; to analyze feedback.
+    No AI insights generated yet. Click "Generate AI Summary" to analyze feedback.
   </div>
 )}
+
+{/* Voice of Customer Report */}
+{vocReport && (
+  <section className="mt-8 rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
+
+    {/* Header */}
+    <div className="mb-8 flex items-center justify-between">
+
+      <div>
+        <h2 className="text-2xl font-semibold">
+          Voice of Customer Report
+        </h2>
+
+        <p className="mt-2 text-sm text-gray-400">
+          Automatically generated from customer feedback analytics. This report summarizes customer sentiment, recurring themes, business insights, and recommended actions.
+        </p>
+      </div>
+
+      <div className="flex items-center gap-3">
+
+        <button
+          onClick={downloadVOCReport}
+          className="
+            rounded-xl
+            bg-blue-600
+            px-5
+            py-2.5
+            text-sm
+            font-medium
+            text-white
+            transition
+            hover:bg-blue-700
+          "
+        >
+          Download PDF
+        </button>
+
+        <button
+          onClick={() => setVocReport("")}
+          className="
+            rounded-xl
+            border
+            border-white/10
+            bg-white/5
+            px-5
+            py-2.5
+            text-sm
+            font-medium
+            text-gray-300
+            transition
+            hover:bg-white/10
+          "
+        >
+          Close
+        </button>
+
+      </div>
+
+    </div>
+
+    {/* Report */}
+
+    <div className="rounded-2xl border border-white/10 bg-slate-900/50 p-8">
+
+      <div className="mb-6 flex items-center justify-between border-b border-white/10 pb-4">
+
+        <div>
+          <h3 className="text-lg font-semibold">
+            Generated Report
+          </h3>
+
+          <p className="mt-1 text-sm text-gray-400">
+            Generated on {new Date().toLocaleString()}
+          </p>
+        </div>
+
+      </div>
+
+      <pre className="
+        whitespace-pre-wrap
+        break-words
+        font-sans
+        text-[15px]
+        leading-8
+        text-gray-300
+      ">
+        {vocReport}
+      </pre>
+
+    </div>
+
   </section>
 )}
 
@@ -344,6 +621,227 @@ async function generateAISummary() {
 
 {/* FILTERS */}
 {/* FILTERS */}
+
+      {/* METRICS */}
+      <section className="grid gap-6 md:grid-cols-3">
+
+        <div className="group overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-8 backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-500/30">
+          <p className="text-sm text-gray-400">
+            Total Feedback
+          </p>
+
+          <h2 className="mt-4 text-5xl font-bold">
+            {data.totalFeedback}
+          </h2>
+
+          <div className="mt-6 h-1 overflow-hidden rounded-full bg-white/5">
+            <div className="h-full w-[75%] bg-blue-500/60" />
+          </div>
+
+          <p className="mt-3 text-xs text-blue-300">
+            Continuously updating
+          </p>
+        </div>
+
+        <div className="group overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-8 backdrop-blur-xl transition hover:-translate-y-1 hover:border-yellow-500/30">
+          <p className="text-sm text-gray-400">
+            Pending Analysis
+          </p>
+
+          <h2 className="mt-4 text-5xl font-bold">
+            {data.pendingCount}
+          </h2>
+
+          <div className="mt-6 h-1 overflow-hidden rounded-full bg-white/5">
+            <div className="h-full w-[45%] bg-yellow-500/60" />
+          </div>
+
+          <p className="mt-3 text-xs text-yellow-300">
+            Needs attention
+          </p>
+        </div>
+
+        <div className="group overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-8 backdrop-blur-xl transition hover:-translate-y-1 hover:border-purple-500/30">
+          <p className="text-sm text-gray-400">
+            Active Themes
+          </p>
+
+          <h2 className="mt-4 text-5xl font-bold">
+            {data.activeThemes}
+          </h2>
+
+          <div className="mt-6 h-1 overflow-hidden rounded-full bg-white/5">
+            <div className="h-full w-[60%] bg-purple-500/60" />
+          </div>
+
+          <p className="mt-3 text-xs text-purple-300">
+            Stable classification
+          </p>
+        </div>
+
+      </section>
+
+      {/* PREMIUM CHARTS */}
+      <section className="grid gap-6 lg:grid-cols-2">
+<SentimentChart
+  sentimentCounts={data.sentimentCounts}
+/>
+<ThemeChart
+  themeCounts={data.themeCounts}
+/>
+
+      </section>
+      <section className="mt-8">
+  <ThemeTrendChart data={trendData} />
+</section>
+
+<section className="mt-8">
+  <SpikeDetection spikes={spikes} />
+</section>
+
+<section className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
+
+    <h2 className="text-2xl font-semibold mb-2">
+        Ask LOOP
+AI-powered Customer Feedback Assistant
+
+    </h2>
+
+    <p className="text-gray-400 mb-6">
+        Ask questions about customer feedback using AI.
+    </p>
+
+<div className="mb-6">
+
+  <h3 className="mb-4 text-sm font-semibold uppercase tracking-wide text-gray-400">
+    Suggested Questions
+  </h3>
+
+  <div className="flex flex-wrap gap-3">
+
+    {suggestedQuestions.map((item) => (
+
+      <button
+        key={item}
+        onClick={() => setQuestion(item)}
+        className="
+          rounded-xl
+          border
+          border-slate-700
+          bg-slate-900
+          px-4
+          py-2
+          text-sm
+          text-gray-300
+          transition
+          hover:border-blue-500
+          hover:text-white
+        "
+      >
+        {item}
+      </button>
+
+    ))}
+
+  </div>
+
+</div>
+    <div className="flex gap-4">
+
+  <input
+    value={question}
+    onChange={(e) => setQuestion(e.target.value)}
+    placeholder="Example: Why are customers unhappy?"
+    className="flex-1 rounded-2xl border border-white/10 bg-black/20 px-5 py-4 text-white outline-none"
+  />
+
+  <button
+  onClick={askLoop}
+  disabled={asking}
+  className="
+    rounded-xl
+    bg-blue-600
+    px-6
+    py-3
+    text-sm
+    font-medium
+    text-white
+    transition
+    hover:bg-blue-700
+    disabled:cursor-not-allowed
+    disabled:opacity-50
+  "
+>
+  {asking ? "Analyzing..." : "Ask"}
+</button>
+
+</div>
+<div className="mb-5 flex justify-end">
+  <button
+    onClick={() => setMessages([])}
+    className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+  >
+    Clear Conversation
+  </button>
+</div>
+
+    <div className="mt-8 space-y-6">
+      {messages.length === 0 && (
+
+<div className="flex items-center justify-between">
+
+  <div>
+    <h2 className="text-2xl font-semibold">
+      Ask LOOP
+    </h2>
+
+    <p className="mt-2 text-gray-400">
+      AI-powered Customer Feedback Assistant
+    </p>
+  </div>
+
+  {messages.length > 0 && (
+    <button
+      onClick={() => setMessages([])}
+      className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm hover:bg-white/10"
+    >
+      Close
+    </button>
+  )}
+
+</div>
+
+)}
+
+  {messages.map((message, index) => (
+
+    <div
+      key={index}
+      className={`rounded-2xl border p-6 ${
+        message.type === "question"
+          ? "border-slate-700 bg-slate-900"
+          : "border-blue-900/30 bg-slate-800"
+      }`}
+    >
+
+      <h3 className="mb-3 text-sm font-semibold text-gray-400">
+        {message.type === "question"
+          ? "Question"
+          : "LOOP Response"}
+      </h3>
+
+      <div className="rounded-xl border border-white/10 bg-slate-900/60 p-5">
+  <div className="whitespace-pre-wrap leading-8 text-gray-200">
+    {message.text}
+  </div>
+</div>
+    </div>
+
+  ))}
+
+</div>
+
+</section>
 <section className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
 
   <div className="mb-6">
@@ -472,75 +970,6 @@ async function generateAISummary() {
   </div>
 
 </section>
-      {/* METRICS */}
-      <section className="grid gap-6 md:grid-cols-3">
-
-        <div className="group overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-8 backdrop-blur-xl transition hover:-translate-y-1 hover:border-blue-500/30">
-          <p className="text-sm text-gray-400">
-            Total Feedback
-          </p>
-
-          <h2 className="mt-4 text-5xl font-bold">
-            {data.totalFeedback}
-          </h2>
-
-          <div className="mt-6 h-1 overflow-hidden rounded-full bg-white/5">
-            <div className="h-full w-[75%] bg-blue-500/60" />
-          </div>
-
-          <p className="mt-3 text-xs text-blue-300">
-            Continuously updating
-          </p>
-        </div>
-
-        <div className="group overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-8 backdrop-blur-xl transition hover:-translate-y-1 hover:border-yellow-500/30">
-          <p className="text-sm text-gray-400">
-            Pending Analysis
-          </p>
-
-          <h2 className="mt-4 text-5xl font-bold">
-            {data.pendingCount}
-          </h2>
-
-          <div className="mt-6 h-1 overflow-hidden rounded-full bg-white/5">
-            <div className="h-full w-[45%] bg-yellow-500/60" />
-          </div>
-
-          <p className="mt-3 text-xs text-yellow-300">
-            Needs attention
-          </p>
-        </div>
-
-        <div className="group overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-white/5 to-transparent p-8 backdrop-blur-xl transition hover:-translate-y-1 hover:border-purple-500/30">
-          <p className="text-sm text-gray-400">
-            Active Themes
-          </p>
-
-          <h2 className="mt-4 text-5xl font-bold">
-            {data.activeThemes}
-          </h2>
-
-          <div className="mt-6 h-1 overflow-hidden rounded-full bg-white/5">
-            <div className="h-full w-[60%] bg-purple-500/60" />
-          </div>
-
-          <p className="mt-3 text-xs text-purple-300">
-            Stable classification
-          </p>
-        </div>
-
-      </section>
-
-      {/* PREMIUM CHARTS */}
-      <section className="grid gap-6 lg:grid-cols-2">
-<SentimentChart
-  sentimentCounts={data.sentimentCounts}
-/>
-<ThemeChart
-  themeCounts={data.themeCounts}
-/>
-
-      </section>
 
       {/* RECENT FEEDBACK */}
       <section className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-xl">
@@ -565,6 +994,36 @@ async function generateAISummary() {
 
         <div className="space-y-4">
 
+        <div className="mt-8 flex items-center justify-between border-t border-white/10 pt-6">
+
+  <button
+    disabled={page === 1}
+    onClick={() => setPage((p) => p - 1)}
+    className="rounded-xl bg-white/10 px-4 py-2 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+  >
+    ← Previous
+  </button>
+
+  <div className="text-center">
+    <p className="text-sm text-gray-400">
+      Page {data.page} of {data.totalPages}
+    </p>
+
+    <p className="text-xs text-gray-500">
+      Showing {data.recentFeedback.length} of {data.totalFeedback} feedback
+    </p>
+  </div>
+
+  <button
+    disabled={page === data.totalPages}
+    onClick={() => setPage((p) => p + 1)}
+    className="rounded-xl bg-white/10 px-4 py-2 transition hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-40"
+  >
+    Next →
+  </button>
+
+</div>
+
           {filteredFeedback && filteredFeedback.length > 0 ? (
   filteredFeedback.map((item) => (
               <div
@@ -578,21 +1037,27 @@ async function generateAISummary() {
 
                 <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-400">
 
-                  <span className="rounded-full border border-white/10 px-3 py-1">
-                    {item.channel ?? "Unknown"}
-                  </span>
+  <span className="rounded-full border border-white/10 px-3 py-1">
+    {item.channel ?? "Unknown"}
+  </span>
 
-                  <span className="rounded-full border border-white/10 px-3 py-1">
-                    {item.sentiment ?? "PENDING"}
-                  </span>
+  <span className="rounded-full border border-white/10 px-3 py-1">
+    {item.sentiment ?? "PENDING"}
+  </span>
 
-                  <span className="rounded-full border border-white/10 px-3 py-1">
-                    {item.theme ?? "Unclassified"}
-                  </span>
+  <span className="rounded-full border border-white/10 px-3 py-1">
+    {item.theme ?? "Unclassified"}
+  </span>
 
-                </div>
+</div>
 
-              </div>
+<button
+  onClick={() => reclassify(item.id)}
+  className="mt-4 rounded-xl bg-purple-600 px-4 py-2 text-sm transition hover:bg-purple-500"
+>
+  Re-classify
+</button>
+</div>
             ))
           ) : (
             <p className="text-gray-400">

@@ -1,54 +1,81 @@
 import { prisma } from "@/lib/prisma";
+import { NextRequest, NextResponse } from "next/server";
 import type { Feedback } from "@prisma/client";
-import { NextResponse } from "next/server";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
+    const page =
+      Number(req.nextUrl.searchParams.get("page")) || 1;
+
+    const limit =
+      Number(req.nextUrl.searchParams.get("limit")) || 5;
+
+    const skip = (page - 1) * limit;
+
+    // Total count
+    const totalFeedback =
+      await prisma.feedback.count();
+
+    // Current page
     const feedbacks: Feedback[] =
       await prisma.feedback.findMany({
+        skip,
+        take: limit,
         orderBy: {
           createdAt: "desc",
         },
       });
 
-    const totalFeedback = feedbacks.length;
+    // All feedback (only for dashboard statistics)
+    const allFeedback =
+      await prisma.feedback.findMany({
+        select: {
+          sentiment: true,
+          theme: true,
+        },
+      });
 
-    const pendingCount = feedbacks.filter(
-      (feedback: Feedback) =>
-        feedback.sentiment === "PENDING"
-    ).length;
+    const pendingCount =
+      allFeedback.filter(
+        f => f.sentiment === "PENDING"
+      ).length;
 
-    const activeThemes = new Set(
-      feedbacks
-        .map((feedback: Feedback) => feedback.theme)
-        .filter(Boolean)
-    ).size;
+    const activeThemes =
+      new Set(
+        allFeedback
+          .map(f => f.theme)
+          .filter(Boolean)
+      ).size;
 
     const sentimentCounts = {
-      positive: feedbacks.filter(
-        (f: Feedback) => f.sentiment === "POSITIVE"
-      ).length,
+      positive:
+        allFeedback.filter(
+          f => f.sentiment === "POSITIVE"
+        ).length,
 
-      negative: feedbacks.filter(
-        (f: Feedback) => f.sentiment === "NEGATIVE"
-      ).length,
+      negative:
+        allFeedback.filter(
+          f => f.sentiment === "NEGATIVE"
+        ).length,
 
-      neutral: feedbacks.filter(
-        (f: Feedback) => f.sentiment === "NEUTRAL"
-      ).length,
+      neutral:
+        allFeedback.filter(
+          f => f.sentiment === "NEUTRAL"
+        ).length,
 
-      pending: feedbacks.filter(
-        (f: Feedback) => f.sentiment === "PENDING"
-      ).length,
+      pending:
+        allFeedback.filter(
+          f => f.sentiment === "PENDING"
+        ).length,
     };
 
     const themeCounts: Record<string, number> = {};
 
-    feedbacks.forEach((feedback: Feedback) => {
-      if (!feedback.theme) return;
+    allFeedback.forEach(f => {
+      if (!f.theme) return;
 
-      themeCounts[feedback.theme] =
-        (themeCounts[feedback.theme] || 0) + 1;
+      themeCounts[f.theme] =
+        (themeCounts[f.theme] || 0) + 1;
     });
 
     return NextResponse.json({
@@ -57,14 +84,20 @@ export async function GET() {
       activeThemes,
       sentimentCounts,
       themeCounts,
-      recentFeedback: feedbacks.slice(0, 5),
+
+      recentFeedback: feedbacks,
+
+      page,
+      limit,
+      totalPages: Math.ceil(totalFeedback / limit),
     });
+
   } catch (error) {
-    console.error("Dashboard API Error:", error);
+    console.error(error);
 
     return NextResponse.json(
       {
-        error: "Failed to fetch dashboard data",
+        error: "Dashboard API Error",
       },
       {
         status: 500,

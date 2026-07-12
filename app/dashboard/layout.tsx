@@ -12,18 +12,19 @@ export default function DashboardLayout({
   const router = useRouter();
 
   useEffect(() => {
-    const user = localStorage.getItem("loopUser");
+  const user = localStorage.getItem("loopUser");
 
-    if (!user) {
-      router.replace("/login");
-    }
-  }, [router]);
+  if (!user) {
+    router.replace("/login");
+    return;
+  }
+}, [router]);
 
   function handleLogout() {
-    localStorage.removeItem("loopUser");
-    router.replace("/login");
-  }
+  localStorage.clear();
 
+  window.location.href = "/login";
+}
   return (
     <div className="flex min-h-screen bg-slate-950 text-white">
 
