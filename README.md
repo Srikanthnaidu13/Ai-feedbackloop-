@@ -40,7 +40,7 @@ Create a `.env` file with the required environment variables before running the 
 
 ## Live Demo
 
-Vercel Deployment: *(Add your Vercel URL here)*
+Vercel Deployment: https://ai-feedback-loop-beige.vercel.app
 
 ## Author
 
