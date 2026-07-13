@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { useSession } from "next-auth/react";
+
 
 
 import SentimentChart from "@/components/dashboard/SentimentChart";
@@ -41,6 +43,9 @@ type DashboardData = {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
+
+const isAdmin = session?.user?.role === "ADMIN";
 
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -204,6 +209,7 @@ const [loadingReport, setLoadingReport] = useState(false);
       </div>
     );
   }
+  
 
   async function exportCSV() {
   try {
@@ -431,19 +437,23 @@ console.log(vocReport);
     Monitor customer sentiment, themes, and feedback activity in real time.
   </p>
 
+  {isAdmin && (
   <button
-  onClick={generateAISummary}
-  className="rounded-2xl bg-purple-600 px-5 py-3 text-sm font-medium hover:bg-purple-500"
->
-  {loadingAI ? "Generating..." : "Generate AI Summary"}
-</button>
+    onClick={generateAISummary}
+    className="rounded-2xl bg-purple-600 px-5 py-3 text-sm font-medium hover:bg-purple-500"
+  >
+    {loadingAI ? "Generating..." : "Generate AI Summary"}
+  </button>
+)}
 
-<button
-  onClick={generateVOCReport}
-  className="ml-4 rounded-2xl bg-slate-700 px-5 py-3 text-sm font-medium transition hover:bg-slate-600"
->
-  {loadingReport ? "Generating Report..." : "Generate VoC Report"}
-</button>
+{isAdmin && (
+  <button
+    onClick={generateVOCReport}
+    className="ml-4 rounded-2xl bg-slate-700 px-5 py-3 text-sm font-medium transition hover:bg-slate-600"
+  >
+    {loadingReport ? "Generating Report..." : "Generate VoC Report"}
+  </button>
+)}
 
 {/* AI Insights */}
 {aiSummary && showAISummary && (
@@ -594,26 +604,26 @@ console.log(vocReport);
         Live updates enabled
       </span>
     </div>
-<button
-  onClick={exportCSV}
-  disabled={exporting}
-  className="
-    rounded-2xl
-    bg-blue-600
-    px-5
-    py-3
-    text-sm
-    font-medium
-    transition
-    hover:bg-blue-500
-    disabled:cursor-not-allowed
-    disabled:opacity-50
-  "
->
-  {exporting
-    ? "Exporting..."
-    : "Export CSV"}
-</button>
+{isAdmin && (
+  <button
+    onClick={exportCSV}
+    disabled={exporting}
+    className="
+      rounded-2xl
+      bg-blue-600
+      px-5
+      py-3
+      text-sm
+      font-medium
+      transition
+      hover:bg-blue-500
+      disabled:cursor-not-allowed
+      disabled:opacity-50
+    "
+  >
+    {exporting ? "Exporting..." : "Export CSV"}
+  </button>
+)}
 
   </div>
 
@@ -1051,12 +1061,14 @@ AI-powered Customer Feedback Assistant
 
 </div>
 
-<button
-  onClick={() => reclassify(item.id)}
-  className="mt-4 rounded-xl bg-purple-600 px-4 py-2 text-sm transition hover:bg-purple-500"
->
-  Re-classify
-</button>
+{isAdmin && (
+  <button
+    onClick={() => reclassify(item.id)}
+    className="mt-4 rounded-xl bg-purple-600 px-4 py-2 text-sm transition hover:bg-purple-500"
+  >
+    Re-classify
+  </button>
+)}
 </div>
             ))
           ) : (

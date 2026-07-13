@@ -22,7 +22,8 @@ export async function POST(req: Request) {
       data: {
         name: username,
         email,
-        password: String(password), // supports numbers and strings
+        password: String(password),
+        role: "VIEWER", // Default role
       },
     });
 

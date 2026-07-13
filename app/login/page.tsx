@@ -3,9 +3,14 @@ import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 
 export default function AuthPage() {
   const router = useRouter();
+  const { data: session } = useSession();
+
+const role = (session?.user as any)?.role;
+const isAdmin = role === "ADMIN";
   useEffect(() => {
   // Prevent going back from the login page
   window.history.pushState(null, "", window.location.href);
@@ -29,6 +34,7 @@ const [password, setPassword] = useState("");
 
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState("");
+
 
 async function handleSubmit(
   e: React.FormEvent<HTMLFormElement>
@@ -66,8 +72,13 @@ async function handleSubmit(
       // Save username locally
       localStorage.setItem("loopUser", username);
 
-      // Redirect to home page
-      router.replace("/");
+      await signIn("credentials", {
+  email,
+  password,
+  redirect: false,
+});
+
+router.replace("/");
     } else {
       // SIGN IN
       const result = await signIn("credentials", {

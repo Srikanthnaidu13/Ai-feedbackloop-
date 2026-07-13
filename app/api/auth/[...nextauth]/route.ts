@@ -12,7 +12,6 @@ export const authOptions: AuthOptions = {
           label: "Email",
           type: "email",
         },
-
         password: {
           label: "Password",
           type: "password",
@@ -32,13 +31,12 @@ export const authOptions: AuthOptions = {
             id: true,
             name: true,
             email: true,
-            password: true, // IMPORTANT
+            password: true,
+            role: true,
           },
         });
 
-        if (!user) {
-          return null;
-        }
+        if (!user) return null;
 
         if (user.password !== String(credentials.password)) {
           return null;
@@ -48,6 +46,7 @@ export const authOptions: AuthOptions = {
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
         };
       },
     }),
@@ -59,6 +58,20 @@ export const authOptions: AuthOptions = {
 
   session: {
     strategy: "jwt",
+  },
+
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.role = (user as any).role;
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      (session.user as any).role = token.role;
+      return session;
+    },
   },
 
   secret: process.env.NEXTAUTH_SECRET,

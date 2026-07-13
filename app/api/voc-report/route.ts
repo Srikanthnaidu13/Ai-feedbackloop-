@@ -27,12 +27,10 @@ export async function POST() {
       (f) => f.sentiment === "PENDING"
     ).length;
 
-    // Theme Counts
     const themeCounts: Record<string, number> = {};
 
     feedback.forEach((item) => {
       if (!item.theme) return;
-
       themeCounts[item.theme] =
         (themeCounts[item.theme] || 0) + 1;
     });
@@ -46,14 +44,12 @@ export async function POST() {
         ? sortedThemes[0][0]
         : "No dominant theme";
 
-    // Top complaints
     const complaints = feedback
       .filter((f) => f.sentiment === "NEGATIVE")
       .slice(0, 5)
       .map((f) => `• ${f.content}`)
       .join("\n");
 
-    // Positive highlights
     const positives = feedback
       .filter((f) => f.sentiment === "POSITIVE")
       .slice(0, 5)
@@ -61,13 +57,31 @@ export async function POST() {
       .join("\n");
 
     const report = `
-VOICE OF CUSTOMER REPORT
+==================================================
+            PROJECT LOOP
+     VOICE OF CUSTOMER (VoC) REPORT
+==================================================
 
+Generated On:
+${new Date().toLocaleString()}
 
+--------------------------------------------------
+1. EXECUTIVE SUMMARY
+--------------------------------------------------
 
-EXECUTIVE SUMMARY
+Total Feedback Collected : ${total}
 
-Total Feedback Received : ${total}
+Overall customer sentiment is ${
+      positive >= negative
+        ? "largely positive with opportunities for continuous improvement."
+        : "showing signs of dissatisfaction that require immediate attention."
+    }
+
+The most discussed customer theme is "${topTheme}". This report summarizes customer sentiment, recurring issues, positive highlights, and recommended business actions.
+
+--------------------------------------------------
+2. CUSTOMER SENTIMENT OVERVIEW
+--------------------------------------------------
 
 Positive Feedback : ${positive}
 
@@ -77,76 +91,69 @@ Neutral Feedback : ${neutral}
 
 Pending Analysis : ${pending}
 
-Overall customer sentiment ${
-      positive >= negative
-        ? "is generally positive."
-        : "requires improvement."
-    }
-
-
-
-CUSTOMER SENTIMENT
-
-Positive : ${positive}
-
-Negative : ${negative}
-
-Neutral : ${neutral}
-
-Pending : ${pending}
-
-
-
-TOP CUSTOMER ISSUES
+--------------------------------------------------
+3. TRENDING THEMES
+--------------------------------------------------
 
 ${
-  complaints || "No major complaints identified."
+  sortedThemes.length
+    ? sortedThemes
+        .map(([theme, count]) => `• ${theme} (${count})`)
+        .join("\n")
+    : "No themes available."
 }
 
-POSITIVE HIGHLIGHTS
+--------------------------------------------------
+4. KEY CUSTOMER CONCERNS
+--------------------------------------------------
+
+${
+  complaints || "No major customer complaints identified."
+}
+
+--------------------------------------------------
+5. POSITIVE HIGHLIGHTS
+--------------------------------------------------
 
 ${
   positives || "No positive feedback available."
 }
 
-
-TRENDING THEMES
-
-${sortedThemes
-  .map(([theme, count]) => `• ${theme} (${count})`)
-  .join("\n")}
-
-
-BUSINESS INSIGHTS
+--------------------------------------------------
+6. BUSINESS INSIGHTS
+--------------------------------------------------
 
 • Most discussed theme: ${topTheme}
 
 • ${
       negative > positive
-        ? "Customer dissatisfaction is increasing."
-        : "Customer experience remains healthy."
+        ? "Negative sentiment exceeds positive feedback, indicating areas requiring improvement."
+        : "Positive customer sentiment outweighs negative feedback."
     }
 
 • ${
       pending > 0
-        ? `${pending} feedback entries still require AI classification.`
-        : "All feedback has been analyzed."
+        ? `${pending} feedback entries are still awaiting AI classification.`
+        : "All feedback has been successfully analyzed."
     }
 
+--------------------------------------------------
+7. RECOMMENDATIONS
+--------------------------------------------------
 
-RECOMMENDATIONS
-
-1. Investigate recurring negative feedback.
+1. Prioritize resolution of recurring customer complaints.
 
 2. Improve product quality in frequently mentioned themes.
 
-3. Continue monitoring customer sentiment daily.
+3. Optimize website and application performance where necessary.
 
-4. Prioritize customer complaints from high-volume channels.
+4. Continue monitoring customer sentiment daily.
 
 5. Track theme trends to identify emerging issues early.
 
+--------------------------------------------------
 END OF REPORT
+--------------------------------------------------
 `;
 
     return NextResponse.json({
