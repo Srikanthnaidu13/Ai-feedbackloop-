@@ -57,31 +57,27 @@ export async function POST() {
       .join("\n");
 
     const report = `
-==================================================
-            PROJECT LOOP
-     VOICE OF CUSTOMER (VoC) REPORT
-==================================================
+Project LOOP
 
-Generated On:
-${new Date().toLocaleString()}
+Voice of Customer Report
 
---------------------------------------------------
-1. EXECUTIVE SUMMARY
---------------------------------------------------
+Generated on ${new Date().toLocaleString()}
 
-Total Feedback Collected : ${total}
+
+Executive Summary
+
+A total of ${total} customer feedback entries have been analyzed.
 
 Overall customer sentiment is ${
-      positive >= negative
-        ? "largely positive with opportunities for continuous improvement."
-        : "showing signs of dissatisfaction that require immediate attention."
-    }
+  positive >= negative
+    ? "predominantly positive, indicating that customers generally appreciate the product while highlighting several opportunities for improvement."
+    : "mixed with recurring concerns that require immediate business attention."
+}
 
-The most discussed customer theme is "${topTheme}". This report summarizes customer sentiment, recurring issues, positive highlights, and recommended business actions.
+The most frequently discussed area is "${topTheme}", making it the highest priority for future product improvements. This report summarizes customer sentiment, recurring themes, key customer concerns, positive highlights, business insights, and recommended actions.
 
---------------------------------------------------
-2. CUSTOMER SENTIMENT OVERVIEW
---------------------------------------------------
+
+Overall Sentiment
 
 Positive Feedback : ${positive}
 
@@ -91,69 +87,75 @@ Neutral Feedback : ${neutral}
 
 Pending Analysis : ${pending}
 
---------------------------------------------------
-3. TRENDING THEMES
---------------------------------------------------
+
+Trending Themes
 
 ${
   sortedThemes.length
     ? sortedThemes
-        .map(([theme, count]) => `• ${theme} (${count})`)
+        .map(([theme, count]) => `${theme} (${count})`)
         .join("\n")
     : "No themes available."
 }
 
---------------------------------------------------
-4. KEY CUSTOMER CONCERNS
---------------------------------------------------
+
+Key Customer Concerns
 
 ${
-  complaints || "No major customer complaints identified."
+  complaints
+    ? complaints.replace(/•/g, "")
+    : "No significant customer concerns were identified."
 }
 
---------------------------------------------------
-5. POSITIVE HIGHLIGHTS
---------------------------------------------------
+
+Positive Highlights
 
 ${
-  positives || "No positive feedback available."
+  positives
+    ? positives.replace(/•/g, "")
+    : "No positive feedback is currently available."
 }
 
---------------------------------------------------
-6. BUSINESS INSIGHTS
---------------------------------------------------
 
-• Most discussed theme: ${topTheme}
+Business Insights
 
-• ${
-      negative > positive
-        ? "Negative sentiment exceeds positive feedback, indicating areas requiring improvement."
-        : "Positive customer sentiment outweighs negative feedback."
-    }
+The most frequently discussed customer theme is "${topTheme}".
 
-• ${
-      pending > 0
-        ? `${pending} feedback entries are still awaiting AI classification.`
-        : "All feedback has been successfully analyzed."
-    }
+${
+  negative > positive
+    ? "Negative feedback currently exceeds positive feedback, indicating several customer experience issues that should be prioritized."
+    : "Positive feedback outweighs negative feedback, suggesting that customers generally have a favorable experience."
+}
 
---------------------------------------------------
-7. RECOMMENDATIONS
---------------------------------------------------
+${
+  pending > 0
+    ? `${pending} feedback entries are still awaiting AI classification.`
+    : "All customer feedback has been successfully analyzed."
+}
 
-1. Prioritize resolution of recurring customer complaints.
 
-2. Improve product quality in frequently mentioned themes.
+Recommendations
 
-3. Optimize website and application performance where necessary.
+Prioritize resolving the recurring issues reported by customers.
 
-4. Continue monitoring customer sentiment daily.
+Focus engineering efforts on improving performance, reliability, and user experience within the highest discussed themes.
 
-5. Track theme trends to identify emerging issues early.
+Continue monitoring customer sentiment regularly to detect emerging issues early.
 
---------------------------------------------------
-END OF REPORT
---------------------------------------------------
+Track long-term customer trends to support product roadmap decisions.
+
+Use customer insights to guide future feature enhancements and quality improvements.
+
+
+Conclusion
+
+Customer feedback indicates ${
+  positive >= negative
+    ? "a generally positive perception of the product, supported by strong appreciation from many users."
+    : "that customer satisfaction can be significantly improved by addressing recurring performance and usability concerns."
+}
+
+Continued analysis of customer feedback will help the organization improve customer satisfaction, strengthen product quality, and make better data-driven business decisions.
 `;
 
     return NextResponse.json({

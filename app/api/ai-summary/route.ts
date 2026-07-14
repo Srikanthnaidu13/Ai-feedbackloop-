@@ -26,49 +26,75 @@ export async function POST(req: Request) {
     }
 
     const prompt = `
-You are a Senior Customer Experience Analyst.
+You are a Senior Customer Experience Analyst preparing an executive report for business stakeholders.
 
-Analyze the customer feedback provided below and generate a professional business report.
+Your responsibility is to analyze the customer feedback below and prepare a professional business report.
 
-Feedback Data:
+Customer Feedback:
 ${text}
 
-Return the response using EXACTLY this format:
+IMPORTANT INSTRUCTIONS
 
-# Executive Summary
-(2-3 concise paragraphs summarizing overall customer perception.)
+• Write like a professional business analyst.
+• Do NOT use Markdown syntax.
+• Do NOT use # headings.
+• Do NOT use ***.
+• Do NOT explain your reasoning.
+• Do NOT ask for more information.
+• Do NOT mention AI.
+• Use professional English.
+• Base every conclusion only on the provided feedback.
+• Keep paragraphs concise and readable.
 
-# Overall Sentiment
-- Positive: X%
-- Negative: X%
-- Neutral: X%
-- Final Assessment: (One sentence)
+Generate the report using the following structure.
 
-# Key Themes
-- Theme 1: Description
-- Theme 2: Description
-- Theme 3: Description
+AI Customer Feedback Report
 
-# Critical Issues
-- Issue 1
-- Issue 2
-- Issue 3
+Executive Summary
 
-# Recommendations
-- Recommendation 1
-- Recommendation 2
-- Recommendation 3
+Write two or three professional paragraphs summarizing the overall customer perception.
 
-# Business Impact
-(Explain how these findings could affect customer satisfaction, retention, or growth.)
+Overall Sentiment
 
-IMPORTANT RULES:
-- Never ask for additional information.
-- Never say "I need more context."
-- Never explain how you would perform the analysis.
-- Treat the provided feedback as the complete dataset.
-- Write in a professional executive-report style.
-- Keep the response concise, clear, and actionable.
+Include
+
+Positive : XX%
+
+Negative : XX%
+
+Neutral : XX%
+
+Then write a short assessment explaining the overall customer sentiment.
+
+Customer Insights
+
+Create separate paragraphs for
+
+Overall Product Experience
+
+Performance
+
+Feature Usage
+
+Critical Issues
+
+Explain the major issues affecting customers.
+
+Recommendations
+
+Provide three practical recommendations that the development team should prioritize.
+
+Business Impact
+
+Explain how the identified issues may affect customer satisfaction, product adoption, retention, and business growth.
+
+Overall Assessment
+
+Give an overall product health score out of 10 and explain why.
+
+Confidence Level
+
+State whether confidence is Low, Medium, or High with one sentence explaining your confidence.
 `;
 
     const response = await fetch(
@@ -81,7 +107,11 @@ IMPORTANT RULES:
         body: JSON.stringify({
           contents: [
             {
-              parts: [{ text: prompt }],
+              parts: [
+                {
+                  text: prompt,
+                },
+              ],
             },
           ],
         }),
@@ -91,18 +121,23 @@ IMPORTANT RULES:
     const data = await response.json();
 
     const summary =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ??
+      "No AI response generated.";
 
     return NextResponse.json({
-      summary: summary || "No AI response generated.",
+      summary,
     });
 
   } catch (error) {
     console.error(error);
 
     return NextResponse.json(
-      { error: "AI summary failed" },
-      { status: 500 }
+      {
+        error: "AI summary failed",
+      },
+      {
+        status: 500,
+      }
     );
   }
 }

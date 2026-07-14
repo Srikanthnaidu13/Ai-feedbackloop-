@@ -305,20 +305,24 @@ async function generateAISummary() {
   try {
     setLoadingAI(true);
 
+    // Fetch ALL feedback instead of only current page
+    const feedbackRes = await fetch("/api/feedback/all");
+
+    const allFeedback = await feedbackRes.json();
+
     const res = await fetch("/api/ai-summary", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-  feedbacks: data?.recentFeedback || [],
-  mode: "structured_insight",
-}),
+        feedbacks: allFeedback,
+      }),
     });
 
     const json = await res.json();
 
-    setAiSummary(json.summary ?? "No response generated");
+    setAiSummary(json.summary || "No AI response generated.");
   } catch (error) {
     console.error(error);
   } finally {

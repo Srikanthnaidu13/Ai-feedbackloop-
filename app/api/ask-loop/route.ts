@@ -10,14 +10,13 @@ export async function POST(req: NextRequest) {
   try {
     const { question } = await req.json();
 
-    if (!question) {
+    if (!question?.trim()) {
       return NextResponse.json(
         {
-          error: "Question is required",
+          success: false,
+          error: "Question is required.",
         },
-        {
-          status: 400,
-        }
+        { status: 400 }
       );
     }
 
@@ -27,49 +26,47 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (!feedback.length) {
+      return NextResponse.json({
+        success: true,
+        answer: "No customer feedback is available for analysis.",
+      });
+    }
+
     const context = feedback
-      .map((item, index) => {
-        return `
+      .map(
+        (item, index) => `
 Feedback ${index + 1}
 
 Content: ${item.content}
-Channel: ${item.channel}
-Sentiment: ${item.sentiment}
-Theme: ${item.theme}
+Channel: ${item.channel ?? "Unknown"}
+Sentiment: ${item.sentiment ?? "Pending"}
+Theme: ${item.theme ?? "Uncategorized"}
 Date: ${item.createdAt.toLocaleDateString()}
-`;
-      })
-      .join("\n---------------------------\n");
+`
+      )
+      .join("\n--------------------------------------------------\n");
 
     const prompt = `
-You are LOOP AI, an AI-powered Customer Feedback Intelligence Assistant.
+You are LOOP AI, the intelligent analytics engine of Project LOOP.
 
-Project LOOP is an enterprise customer feedback analytics platform that helps organizations analyze customer feedback, detect sentiment, identify recurring themes, monitor trends, and generate business insights.
+Project LOOP is an enterprise Customer Feedback Intelligence Platform designed to help organizations understand customer opinions, monitor satisfaction, identify trends, detect recurring issues, and generate business recommendations.
 
 ==================================================
-YOUR RESPONSIBILITIES
+YOUR ROLE
 ==================================================
 
-You must answer ONLY questions related to:
+Act as a Senior Customer Experience Analyst and Business Intelligence Consultant.
 
-• Customer Feedback
-• Sentiment Analysis
-• Theme Analysis
-• Customer Experience
-• Product Quality
-• Business Insights
-• Dashboard Analytics
-• Reports
-• Recommendations
-• Customer Satisfaction
-• Complaint Analysis
-• Feature Requests
-• Feedback Trends
-• Project LOOP
+Your audience includes:
 
-If the user asks anything unrelated (movies, sports, programming, history, mathematics, etc.), reply ONLY:
+• Product Managers
+• Business Executives
+• Customer Success Teams
+• Engineering Managers
+• UX Designers
 
-"I can answer questions related to Project LOOP customer feedback analytics and business insights."
+Your responsibility is to transform customer feedback into actionable business insights.
 
 ==================================================
 AVAILABLE CUSTOMER FEEDBACK
@@ -84,78 +81,147 @@ USER QUESTION
 ${question}
 
 ==================================================
-RESPONSE GUIDELINES
+RESPONSE FORMAT
 ==================================================
 
-Always answer professionally.
+Write your response as a professional business report.
 
-If the information exists, structure the response using the following sections.
+DO NOT use:
 
-Answer
+#
+##
+###
+*
+-
+**
+Markdown tables
+Code blocks
 
-Key Findings
+Instead, use clean section titles exactly like this:
 
-Evidence
+Executive Summary
 
-Business Recommendation
+Write 1–2 concise paragraphs answering the user's question.
 
-Rules:
+Overall Assessment
 
-1. Never invent information.
+Provide a short business assessment summarizing the situation.
 
-2. Use only the feedback provided above.
+Key Insights
 
-3. If possible mention which feedback supports your answer.
+1. First insight
 
-Example:
+Explain it in one paragraph.
 
-Evidence
+2. Second insight
 
-• Feedback 2
-"Slow loading work on it"
+Explain it.
 
-• Feedback 5
-"BAD WORST"
+3. Third insight
 
-4. If enough information does not exist, say:
+Explain it.
 
-"Based on the available customer feedback, there is not enough information to answer this question."
+Supporting Evidence
 
-5. Keep the answer concise but informative.
+Feedback 12
+"The payment page takes too long to load."
 
-6. Give practical business recommendations whenever possible.
+Feedback 27
+"OTP verification is delayed."
 
-7. Do not mention technical implementation details or Gemini.
+Feedback 41
+"The app freezes after login."
 
-8. If users ask for summaries, executive reports, complaints, trends, customer satisfaction, recommendations, product quality, or dashboard insights, answer in detail.
+Business Recommendations
 
-9. If multiple themes or sentiments are involved, compare them.
+1. Recommendation title
 
-10. Maintain a professional business tone suitable for executives and product managers.
+Explain why it is important.
+
+2. Recommendation title
+
+Explain expected business benefits.
+
+3. Recommendation title
+
+Explain how it improves customer experience.
+
+Conclusion
+
+Write one concise concluding paragraph suitable for executives.
+
+==================================================
+IMPORTANT RULES
+==================================================
+
+1. Use ONLY the feedback provided.
+
+2. Never invent information.
+
+3. Never fabricate statistics.
+
+4. If exact percentages are unavailable, describe trends instead.
+
+5. Always support findings using the available feedback whenever possible.
+
+6. If there is insufficient information, reply exactly:
+
+"Based on the available customer feedback, there is not enough evidence to answer this question confidently."
+
+7. Keep the language professional and suitable for executive presentations.
+
+8. Keep responses concise but informative.
+
+9. Give practical business recommendations whenever appropriate.
+
+10. Compare positive and negative trends when both exist.
+
+11. Never mention Gemini, AI models, prompts, or technical implementation.
+
+==================================================
+RESTRICTED QUESTIONS
+==================================================
+
+If the question is unrelated to:
+
+• Customer Feedback
+• Sentiment Analysis
+• Business Insights
+• Customer Experience
+• Voice of Customer
+• Product Quality
+• Dashboard Analytics
+• Theme Analysis
+• Project LOOP
+
+reply ONLY with:
+
+"I can assist only with Project LOOP customer feedback analytics, business insights, sentiment analysis, Voice of Customer reports, and executive recommendations."
+
+Do not answer unrelated questions.
 `;
 
-    const response = await ai.models.generateContent({
+    const result = await ai.models.generateContent({
       model: "gemini-2.5-flash",
       contents: prompt,
     });
 
-   return NextResponse.json({
-  success: true,
-  answer: response.text,
-  generatedAt: new Date().toISOString(),
-});
-
+    return NextResponse.json({
+      success: true,
+      answer: result.text,
+      generatedAt: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error(error);
+    console.error("Ask LOOP Error:", error);
 
     return NextResponse.json(
-  {
-    success: false,
-    error: "Unable to generate AI response. Please try again."
-  },
-  {
-    status: 500
-  }
-);
+      {
+        success: false,
+        error: "Unable to generate AI response. Please try again.",
+      },
+      {
+        status: 500,
+      }
+    );
   }
 }
