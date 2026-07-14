@@ -33,6 +33,32 @@ export async function GET() {
   }
 }
 
+export async function DELETE(req: Request) {
+  try {
+    const { id } = await req.json();
+
+    await prisma.feedback.delete({
+      where: {
+        id,
+      },
+    });
+
+    notifyAll();
+
+    return NextResponse.json({
+      success: true,
+    });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: "Unable to delete feedback",
+      },
+      {
+        status: 500,
+      }
+    );
+  }
+}
 
 // ======================
 // CREATE FEEDBACK

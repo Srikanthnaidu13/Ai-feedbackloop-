@@ -8,27 +8,47 @@ export async function GET() {
     },
   });
 
-  const grouped: Record<string, Record<string, number>> = {};
+  const grouped: Record<
+    string,
+    Record<string, number>
+  > = {};
 
   feedback.forEach((item) => {
     if (!item.theme) return;
 
-    const day = item.createdAt.toISOString().split("T")[0];
+    const month = item.createdAt.toLocaleString("en-US", {
+      month: "short",
+    });
 
-    if (!grouped[day]) {
-      grouped[day] = {};
+    if (!grouped[month]) {
+      grouped[month] = {};
     }
 
-    grouped[day][item.theme] =
-      (grouped[day][item.theme] || 0) + 1;
+    grouped[month][item.theme] =
+      (grouped[month][item.theme] || 0) + 1;
   });
 
-  const trends = Object.entries(grouped).map(
-    ([date, themes]) => ({
-      date,
-      ...themes,
-    })
-  );
+  const monthOrder = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ];
+
+  const trends = monthOrder
+    .filter((month) => grouped[month])
+    .map((month) => ({
+      date: month,
+      ...grouped[month],
+    }));
 
   return NextResponse.json(trends);
 }
