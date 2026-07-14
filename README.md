@@ -10,12 +10,12 @@ Unlike traditional feedback systems, Project LOOP transforms raw customer feedba
 
 ---
 
-## Live Demo
+# Live Demo
 
+> Add your deployed Vercel URL here
 
-
+```
 Vercel Deployment: https://ai-feedback-loop-beige.vercel.app
-
 ```
 
 ---
@@ -491,5 +491,6 @@ https://srikanthsdev.vercel.app
 
 # License
 
+This project was developed as part of the **Zidio Development Internship**.
 
 This repository is intended for educational and portfolio purposes.
