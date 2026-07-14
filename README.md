@@ -12,7 +12,6 @@ Unlike traditional feedback systems, Project LOOP transforms raw customer feedba
 
 # Live Demo
 
-> Add your deployed Vercel URL here
 
 ```
 Vercel Deployment: https://ai-feedback-loop-beige.vercel.app
