@@ -14,6 +14,7 @@ import LogoutButton from "@/components/LogoutButton";
 import ThemeTrendChart from "@/components/dashboard/ThemeTrendChart";
 import SpikeDetection from "@/components/dashboard/SpikeDetection";
 
+
 type DashboardData = {
   totalFeedback: number;
   pendingCount: number;
@@ -56,6 +57,7 @@ const [trendData, setTrendData] = useState<any[]>([]);
   const [spikes, setSpikes] = useState([]);
   const [loadingAI, setLoadingAI] = useState(false);
   const [question, setQuestion] = useState("");
+  const [seeding, setSeeding] = useState(false);
 
 const [asking, setAsking] = useState(false);
 const [messages, setMessages] = useState<
@@ -258,6 +260,47 @@ const [loadingReport, setLoadingReport] = useState(false);
     setExporting(false);
   }
 }
+
+async function seedDemoFeedback() {
+  try {
+    setSeeding(true);
+
+    const res = await fetch("/api/seed-feedback", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        count: 50,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error);
+    }
+
+    setNotification({
+      type: "success",
+      message: data.message,
+    });
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  } catch (error) {
+    console.error(error);
+
+    setNotification({
+      type: "error",
+      message: "Unable to generate demo feedback.",
+    });
+  } finally {
+    setSeeding(false);
+  }
+}
+
 async function generateAISummary() {
   try {
     setLoadingAI(true);
@@ -492,7 +535,8 @@ console.log(vocReport);
 )}
 
 {/* Empty AI state */}
-{!aiSummary && !loadingAI && (
+{/* Empty AI state - Admin only */}
+{isAdmin && !aiSummary && !loadingAI && (
   <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-gray-400">
     No AI insights generated yet. Click "Generate AI Summary" to analyze feedback.
   </div>
@@ -604,26 +648,46 @@ console.log(vocReport);
         Live updates enabled
       </span>
     </div>
-{isAdmin && (
+<div className="flex items-center gap-3">
+
+  {isAdmin && (
   <button
-    onClick={exportCSV}
-    disabled={exporting}
-    className="
-      rounded-2xl
-      bg-blue-600
-      px-5
-      py-3
-      text-sm
-      font-medium
-      transition
-      hover:bg-blue-500
-      disabled:cursor-not-allowed
-      disabled:opacity-50
-    "
+    onClick={() => router.push("/dashboard/seed")}
+    className="rounded-2xl bg-emerald-600 px-5 py-3 text-sm font-medium transition hover:bg-emerald-500"
   >
-    {exporting ? "Exporting..." : "Export CSV"}
+    Seed Demo Data
   </button>
 )}
+{isAdmin && (
+  <button
+    onClick={() => router.push("/dashboard/import")}
+    className="rounded-2xl bg-indigo-600 px-5 py-3 text-sm font-medium transition hover:bg-indigo-500"
+  >
+    Import CSV
+  </button>
+)}
+  {isAdmin && (
+    <button
+      onClick={exportCSV}
+      disabled={exporting}
+      className="
+        rounded-2xl
+        bg-blue-600
+        px-5
+        py-3
+        text-sm
+        font-medium
+        transition
+        hover:bg-blue-500
+        disabled:cursor-not-allowed
+        disabled:opacity-50
+      "
+    >
+      {exporting ? "Exporting..." : "Export CSV"}
+    </button>
+  )}
+
+</div>
 
   </div>
 
