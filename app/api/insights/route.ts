@@ -11,37 +11,53 @@ export async function GET() {
 
     const totalFeedback = feedbacks.length;
 
+    // Correct sentiment counting
     const sentimentCounts = {
-      positive: feedbacks.filter(
-        (f) => f.sentiment === "POSITIVE"
-      ).length,
-
-      negative: feedbacks.filter(
-        (f) => f.sentiment === "NEGATIVE"
-      ).length,
-
-      neutral: feedbacks.filter(
-        (f) => f.sentiment === "NEUTRAL"
-      ).length,
-
-      pending: feedbacks.filter(
-        (f) => f.sentiment === "PENDING"
-      ).length,
+      positive: 0,
+      negative: 0,
+      neutral: 0,
+      pending: 0,
     };
 
+    feedbacks.forEach((feedback) => {
+      const sentiment = (feedback.sentiment || "PENDING")
+        .trim()
+        .toUpperCase();
+
+      switch (sentiment) {
+        case "POSITIVE":
+          sentimentCounts.positive++;
+          break;
+
+        case "NEGATIVE":
+          sentimentCounts.negative++;
+          break;
+
+        case "NEUTRAL":
+          sentimentCounts.neutral++;
+          break;
+
+        default:
+          sentimentCounts.pending++;
+          break;
+      }
+    });
+
+    // Theme counts
     const themeCounts: Record<string, number> = {};
 
     feedbacks.forEach((feedback) => {
       const theme = feedback.theme || "General";
 
-      themeCounts[theme] =
-        (themeCounts[theme] || 0) + 1;
+      themeCounts[theme] = (themeCounts[theme] || 0) + 1;
     });
 
+    const sortedThemes = Object.entries(themeCounts).sort(
+      (a, b) => b[1] - a[1]
+    );
+
     const topTheme =
-      Object.entries(themeCounts).sort(
-        (a, b) => b[1] - a[1]
-      )[0]?.[0] || "None";
+      sortedThemes.length > 0 ? sortedThemes[0][0] : "None";
 
     const dominantSentiment =
       Object.entries(sentimentCounts).sort(
@@ -52,51 +68,54 @@ export async function GET() {
 
     if (dominantSentiment === "positive") {
       insights.push(
-        "Overall customer sentiment is highly positive."
+        "Overall customer sentiment is predominantly positive."
       );
     }
 
     if (dominantSentiment === "negative") {
       insights.push(
-        "Negative sentiment is dominant and requires immediate review."
+        "Negative sentiment is dominant and should be addressed immediately."
       );
     }
 
     if (sentimentCounts.pending > 0) {
       insights.push(
-        `${sentimentCounts.pending} feedback items still require processing.`
+        `${sentimentCounts.pending} feedback item(s) are awaiting AI classification.`
       );
     }
 
     if (topTheme !== "None") {
       insights.push(
-        `Most discussions revolve around '${topTheme}'.`
+        `The most frequently discussed customer theme is "${topTheme}".`
       );
     }
 
     const aiSummary = `
-Analyzed ${totalFeedback} customer feedback entries.
-The dominant sentiment is ${dominantSentiment}.
-The most discussed topic is ${topTheme}.
+Project LOOP analyzed ${totalFeedback} customer feedback entries.
+
+Dominant Sentiment: ${dominantSentiment}
+
+Most Discussed Theme: ${topTheme}
+
 ${
   sentimentCounts.negative > sentimentCounts.positive
-    ? "Customer satisfaction requires immediate attention."
-    : "Overall customer satisfaction appears healthy."
+    ? "Customer satisfaction requires immediate attention due to the higher volume of negative feedback."
+    : "Overall customer satisfaction appears healthy based on the current feedback."
 }
-`;
+`.trim();
 
-return NextResponse.json({
-  totalFeedback,
-  sentimentCounts,
-  themeCounts,
+    return NextResponse.json({
+      totalFeedback,
+      sentimentCounts,
+      themeCounts,
+      aiSummary,
+      topTheme,
+      dominantSentiment,
+      insights,
 
-  aiSummary,
-  topTheme,
-  dominantSentiment,
-  insights,
-
-  recentFeedback: feedbacks.slice(0, 5),
-});
+      // Latest feedback
+      recentFeedback: feedbacks.slice(0, 10),
+    });
   } catch (error) {
     console.error("Insights API Error:", error);
 
